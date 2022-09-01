@@ -58,6 +58,18 @@ var (
 			"url":               "https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/35.20220103.3.0/aarch64/fedora-coreos-35.20220103.3.0-live.aarch64.iso",
 			"version":           "arm-latest",
 		},
+		{
+			"openshift_version": "4.11",
+                        "cpu_architecture":  "ppc64le",
+                        "url":               "https://mirror.openshift.com/pub/openshift-v4/ppc64le/dependencies/rhcos/4.11/latest/rhcos-4.11.0-ppc64le-live.ppc64le.iso",
+                        "version":           "4.11-latest",
+		},
+		{
+                        "openshift_version": "4.11",
+                        "cpu_architecture":  "s390x",
+                        "url":               "https://mirror.openshift.com/pub/openshift-v4/s390x/dependencies/rhcos/4.11/latest/rhcos-4.11.0-s390x-live.s390x.iso",
+                        "version":           "4.11-latest",
+		}
 	}
 
 	imageDir            string
