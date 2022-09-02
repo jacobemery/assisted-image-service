@@ -72,7 +72,7 @@ var DefaultVersions = []map[string]string{
 		"cpu_architecture":  "s390x",
 		"url":               "https://mirror.openshift.com/pub/openshift-v4/s390x/dependencies/rhcos/4.11/latest/rhcos-4.11.0-s390x-live.s390x.iso",
 		"version":           "411.86.202208190941-0",
-	}
+	},
 }
 
 //go:generate mockgen -package=imagestore -destination=mock_imagestore.go . ImageStore
@@ -217,7 +217,7 @@ func (s *rhcosStore) Populate(ctx context.Context) error {
 		imageVersion := imageInfo["version"]
 		arch := imageInfo["cpu_architecture"]
 
-		if arch == "s390x"
+		if arch == "s390x"{
 			continue
 		}
 		minimalPath := filepath.Join(s.dataDir, isoFileName(ImageTypeMinimal, openshiftVersion, imageVersion, arch))

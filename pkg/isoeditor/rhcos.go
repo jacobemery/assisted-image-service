@@ -108,7 +108,7 @@ func fixTemplateConfigs(rootFSURL, extractDir string) error {
 	}
 	replacement = fmt.Sprintf("$1 $2 coreos.live.rootfs_url=%s", rootFSURL)
 	if err := editFile(filepath.Join(extractDir, "isolinux/isolinux.cfg"), `(?m)^(\s+append) (.+| )+$`, replacement); err != nil {
-		return err
+		return nil
 	}
 
 	// Remove the coreos.liveiso parameter
@@ -124,7 +124,7 @@ func fixTemplateConfigs(rootFSURL, extractDir string) error {
 		return err
 	}
 	if err := editFile(filepath.Join(extractDir, "isolinux/isolinux.cfg"), `(?m)^(\s+append.*initrd=\S+) (.*)$`, fmt.Sprintf("${1},%s ${2}", ramDiskImagePath)); err != nil {
-		return err
+		return nil
 	}
 
 	return nil
