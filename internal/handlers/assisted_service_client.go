@@ -3,11 +3,13 @@ package handlers
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/openshift/assisted-image-service/pkg/isoeditor"
 )
@@ -21,6 +23,9 @@ type AssistedServiceClient struct {
 const fileRouteFormat = "/api/assisted-install/v2/infra-envs/%s/downloads/files"
 
 func NewAssistedServiceClient(assistedServiceScheme, assistedServiceHost, caCertFile string) (*AssistedServiceClient, error) {
+	if len(assistedServiceHost) == 0 {
+		return nil, fmt.Errorf("ASSISTED_SERVICE_HOST is not set")
+	}
 	client := &http.Client{}
 	if caCertFile != "" {
 		caCert, err := ioutil.ReadFile(caCertFile)
@@ -53,9 +58,6 @@ func NewAssistedServiceClient(assistedServiceScheme, assistedServiceHost, caCert
 // The returned code should only be used if an error is also returned
 func (c *AssistedServiceClient) ramdiskContent(imageServiceRequest *http.Request, imageID string) ([]byte, int, error) {
 	var ramdiskBytes []byte
-	if c.assistedServiceHost == "" {
-		return nil, 0, nil
-	}
 
 	u := url.URL{
 		Scheme: c.assistedServiceScheme,
@@ -92,9 +94,6 @@ func (c *AssistedServiceClient) ramdiskContent(imageServiceRequest *http.Request
 // The code is also returned to ensure issues with authentication from the assisted service request are communicated back to the image service user
 // The returned code should only be used if an error is also returned
 func (c *AssistedServiceClient) ignitionContent(imageServiceRequest *http.Request, imageID string, imageType string) (*isoeditor.IgnitionContent, string, int, error) {
-	if c.assistedServiceHost == "" {
-		return nil, "", 0, nil
-	}
 
 	u := url.URL{
 		Scheme: c.assistedServiceScheme,
@@ -127,6 +126,50 @@ func (c *AssistedServiceClient) ignitionContent(imageServiceRequest *http.Reques
 	}
 
 	return &isoeditor.IgnitionContent{Config: ignitionBytes}, resp.Header.Get("Last-Modified"), 0, nil
+}
+
+const infraEnvPathFormat = "/api/assisted-install/v2/infra-envs/%s"
+
+// discoveryKernelArguments returns the kernel arguments data on success (if exists) and the error and the corresponding http status code
+// The code is also returned to ensure issues with authentication from the assisted service request are communicated back to the image service user
+// The returned code should only be used if an error is also returned
+func (c *AssistedServiceClient) discoveryKernelArguments(imageServiceRequest *http.Request, infraEnvID string) ([]byte, int, error) {
+
+	u := url.URL{
+		Scheme: c.assistedServiceScheme,
+		Host:   c.assistedServiceHost,
+		Path:   fmt.Sprintf(infraEnvPathFormat, infraEnvID),
+	}
+
+	req, err := http.NewRequestWithContext(imageServiceRequest.Context(), "GET", u.String(), nil)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+	setRequestAuth(imageServiceRequest, req)
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, resp.StatusCode, fmt.Errorf("infra-env request to %s returned status %d", req.URL.String(), resp.StatusCode)
+	}
+	d := json.NewDecoder(resp.Body)
+	var infraEnv struct {
+		// JSON formatted string array representing the discovery image kernel arguments.
+		KernelArguments *string `json:"kernel_arguments,omitempty"`
+	}
+	if err = d.Decode(&infraEnv); err != nil {
+		return nil, http.StatusInternalServerError, fmt.Errorf("failed to decode infra-env input: %v", err)
+	}
+	if infraEnv.KernelArguments != nil {
+		kargs, err := isoeditor.StrToKargs(*infraEnv.KernelArguments)
+		if err != nil {
+			return nil, http.StatusInternalServerError, err
+		}
+		return []byte(" " + strings.Join(kargs, " ") + "\n"), 0, nil
+	}
+	return nil, 0, nil
 }
 
 func setRequestAuth(imageRequest, assistedRequest *http.Request) {
